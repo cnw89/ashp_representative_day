@@ -11,6 +11,7 @@ profile_name_map = {'Monthly minimum' : 'min', 'Monthly average': 'mean'}
 building_type_map = {'Pre-1950''s': 0, '1950''s-60''s': 1, '1970''s' : 2, '1980''s' : 3, '1990''s' : 4,'2000''s' : 5,'post-2010': 6}
 insulation_map = {'None' : 0, 'A little' : 1, 'A lot' : 2}
 day_time = [7, 23]
+weather_control_range=[-3, 17]
 
 #ventilation loss function
 f_vent_pow = lambda Tin, Tout, Vroom, Nreplace : 0.33 * Vroom * Nreplace * (Tin - Tout)
@@ -32,7 +33,8 @@ def setup_sidebar():
     house1 = st.sidebar.selectbox(
         'Building type',
         building_type_map.keys(),
-        key='1'
+        key='1',
+        index=4
     )
 
     insulation1 = st.sidebar.selectbox(
@@ -52,7 +54,8 @@ def setup_sidebar():
     house2 = st.sidebar.selectbox(
         'Building type',
         building_type_map.keys(),
-        key='2'
+        key='2',
+        index=4
     )
 
     insulation2 = st.sidebar.selectbox(
@@ -148,8 +151,8 @@ def process_inputs(input_dict):
     Tsetpoints1 = input_dict['T_setpoints1']
     Tsetpoints2 = Tsetpoints1
 
-    Pdesign1 = calc_design_heatloss(min(df_Text.tolist()), max(Tsetpoints1), build_properties1)
-    Pdesign2 = calc_design_heatloss(min(df_Text.tolist()), max(Tsetpoints2), build_properties2)
+    Pdesign1 = calc_design_heatloss(weather_control_range[0], max(Tsetpoints1), build_properties1)
+    Pdesign2 = calc_design_heatloss(weather_control_range[0], max(Tsetpoints2), build_properties2)
     source1 = input_dict['source1'](Pdesign=Pdesign1)
     source2 = input_dict['source2'](Pdesign=Pdesign2)
 
@@ -184,9 +187,12 @@ def run_test_case(df_Text, df_Psolar, case, source, build_properties, Tsetpoints
                                    (f'Case {case}',  'T2'),
                                    (f'Case {case}',  'Psource'),
                                    (f'Case {case}',  'Pvent'),
-                                   (f'Case {case}',  'Pbase')
+                                   (f'Case {case}',  'Pbase'),
+                                   (f'Case {case}',  'Pconsum'),
+                                   (f'Case {case}',  'Pconsumtot')
                                    ], dtype=float,
                                    index=df_Text.index)
+    Pconsumtot = 0
 
     for itime, (t, Text) in enumerate(df_Text.items()):
         
@@ -199,7 +205,8 @@ def run_test_case(df_Text, df_Psolar, case, source, build_properties, Tsetpoints
             Tset = Tsetpoints[0]
 
         # determine heat input
-        Psource = source.run(Tin, Text, Tset) 
+        Psource, Pconsum = source.run(Tin, Text, Tset) 
+        Pconsumtot += Pconsum * dt
         Pvent = f_vent_pow(Tin, Text, Vroom, Nreplace) 
         heatinput = Psource - Pvent + df_Psolar.iloc[itime] + Pbase
         
@@ -213,7 +220,7 @@ def run_test_case(df_Text, df_Psolar, case, source, build_properties, Tsetpoints
         T2 += (net_heatflow_2 * dt) / k2
         T1 += (net_heatflow_1 * dt) / k1    
         
-        df_out.iloc[itime, :] = [Text, Tset, df_Psolar.iloc[itime], Tin, T1, T2, Psource, Pvent, Pbase]
+        df_out.iloc[itime, :] = [Text, Tset, df_Psolar.iloc[itime], Tin, T1, T2, Psource, Pvent, Pbase, Pconsum, Pconsumtot/3600000]
 
     #st.dataframe(df_out)
     
@@ -245,6 +252,16 @@ def print_plots(input_dict, input_list, results):
                 ('Common', 'Set Temp'), 
                 ('Case 1', 'Inside Temp'),
                 ('Case 2', 'Inside Temp')]
+                
+    st.line_chart(results.loc[:, columns])
+
+    columns = [('Case 1', 'Pconsum'),
+                ('Case 2', 'Pconsum')]
+                
+    st.line_chart(results.loc[:, columns])
+
+    columns = [('Case 1', 'Pconsumtot'),
+                ('Case 2', 'Pconsumtot')]
                 
     st.line_chart(results.loc[:, columns])
 
