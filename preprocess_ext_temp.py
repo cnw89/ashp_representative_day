@@ -2,6 +2,7 @@ import pandas as pd
 
 IN_FILENAME = 'ninja_weather_country_GB_merra-2_population_weighted.csv'
 OUT_FILENAME = 'Text_profiles.csv'
+
 YEAR_RANGE = [2000, 2019]
 
 years_to_drop = []
@@ -12,7 +13,7 @@ if YEAR_RANGE[1] < 2019:
     
 if __name__ == "__main__":
 
-    df = pd.read_csv(IN_FILENAME, header=2, index_col=0, parse_dates=[0], infer_datetime_format=True, dayfirst=True, usecols=[0, 2])
+    df = pd.read_csv(IN_FILENAME, header=2, parse_dates=[0], infer_datetime_format=True, dayfirst=True, usecols=[0, 2])
 
     #break out date
     df = df.assign(year=df.time.dt.year, month=df.time.dt.month, day=df.time.dt.day, time_of_day=df.time.dt.time)
@@ -43,3 +44,12 @@ if __name__ == "__main__":
     df2 = df2.interpolate(method='time') 
     
     df2.to_csv(OUT_FILENAME)
+
+    #make some dummy solar data
+    dfsolar = df2.copy()
+    dfsolar -= 5
+    dfsolar[dfsolar < 0] = 0
+    dfsolar *= 1000*10/25
+
+    OUT_FILENAME = 'Psolar_profiles.csv'
+    dfsolar.to_csv(OUT_FILENAME)
