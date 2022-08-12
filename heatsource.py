@@ -40,7 +40,7 @@ class Boiler(HeatSource):
 class HeatPump(HeatSource):
     Tsys = 45
     Toff = 8
-    def __init__(self, Pdesign, Ttol=1, eff=0.75, weather_control_range=[-3, 17]):
+    def __init__(self, Pdesign, Ttol=1, eff=0.75, weather_control_range=[24, 4]):
         #efficiency here is a fraction of the Carnot COP
         self.weather_control_range = weather_control_range
         self.Pmax = Pdesign
@@ -49,10 +49,7 @@ class HeatPump(HeatSource):
 
     def run(self, Tin, Tout, Tset):
 
-        if Tin > (Tset + self.Ttol):
-            return 0, 0
-
-        Pout = (self.weather_control_range[1] - Tout)/(self.weather_control_range[1] - self.weather_control_range[0])
+        Pout = (Tset - Tout - self.weather_control_range[1])/(self.weather_control_range[0] - self.weather_control_range[1])
         Pout = max(0, min(1, Pout))
         Pout *= self.Pmax
 

@@ -10,10 +10,8 @@ if YEAR_RANGE[0] > 1980:
     years_to_drop.extend([y for y in range(1980, YEAR_RANGE[0])])
 if YEAR_RANGE[1] < 2019:
     years_to_drop.extend([y for y in range(YEAR_RANGE[1], 2019)])
-    
-if __name__ == "__main__":
 
-    df = pd.read_csv(IN_FILENAME, header=2, parse_dates=[0], infer_datetime_format=True, dayfirst=True, usecols=[0, 2])
+def min_and_max_per_month(df):
 
     #break out date
     df = df.assign(year=df.time.dt.year, month=df.time.dt.month, day=df.time.dt.day, time_of_day=df.time.dt.time)
@@ -42,14 +40,20 @@ if __name__ == "__main__":
     df2.iloc[:-1:6, :] = df.iloc[:, :]
     df2.iloc[-1, :] = df2.iloc[0, :]    
     df2 = df2.interpolate(method='time') 
+
+    return df2
+
+if __name__ == "__main__":
+
+    #first do temperatures
+    df = pd.read_csv(IN_FILENAME, header=2, parse_dates=[0], infer_datetime_format=True, dayfirst=True, usecols=[0, 2])
+    df2 = min_and_max_per_month(df)    
     
     df2.to_csv(OUT_FILENAME)
 
-    #make some dummy solar data
-    dfsolar = df2.copy()
-    dfsolar -= 5
-    dfsolar[dfsolar < 0] = 0
-    dfsolar *= 1000*10/25
-
+    #then do solar
+    df = pd.read_csv(IN_FILENAME, header=2, parse_dates=[0], infer_datetime_format=True, dayfirst=True, usecols=[0, 3])
+    df2 = min_and_max_per_month(df)    
+    
     OUT_FILENAME = 'Psolar_profiles.csv'
-    dfsolar.to_csv(OUT_FILENAME)
+    df2.to_csv(OUT_FILENAME)

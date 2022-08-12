@@ -17,7 +17,7 @@ weather_control_range=[-3, 17]
 f_vent_pow = lambda Tin, Tout, Vroom, Nreplace : 0.33 * Vroom * Nreplace * (Tin - Tout)
 
 #base power from internal sources (assumed constant in time)
-Pbase = 1000 #W
+Pbase = 200 #W
 
 def setup_sidebar():
     
@@ -125,12 +125,12 @@ def lookup_build_properties(building_type, insulation):
 
 def calc_design_heatloss(Text_min, Tset_max, build_properties):
 
-    Vroom, Nreplace, u1, u2, u3, k1, k2, k3 = build_properties.iloc[:].tolist()
+    Asolar, Vroom, Nreplace, u1, u2, u3, k1, k2, k3 = build_properties.iloc[:].tolist()
     Pvent = f_vent_pow(Tset_max, Text_min, Vroom, Nreplace)
     u = 1/(1/u1 + 1/u2 + 1/u3)
     Pwalls = u * (Tset_max - Text_min)
 
-    return Pvent + Pwalls
+    return Pvent + Pwalls - Pbase
 
 def process_inputs(input_dict):
     """
@@ -170,7 +170,7 @@ def run_test_case(df_Text, df_Psolar, case, source, build_properties, Tsetpoints
     
     #prepare values
     dt = (df_Text.index[1] - df_Text.index[0]).seconds    
-    Vroom, Nreplace, u1, u2, u3, k1, k2, k3 = build_properties.iloc[:].tolist()
+    Asolar, Vroom, Nreplace, u1, u2, u3, k1, k2, k3 = build_properties.iloc[:].tolist()
     
     #initialize Temperatures
     Tin = Tsetpoints[1]
@@ -208,7 +208,8 @@ def run_test_case(df_Text, df_Psolar, case, source, build_properties, Tsetpoints
         Psource, Pconsum = source.run(Tin, Text, Tset) 
         Pconsumtot += Pconsum * dt
         Pvent = f_vent_pow(Tin, Text, Vroom, Nreplace) 
-        heatinput = Psource - Pvent + df_Psolar.iloc[itime] + Pbase
+        Psolar =  Asolar * df_Psolar.iloc[itime]
+        heatinput = Psource - Pvent + Psolar + Pbase
         
         #print(heatinput, Tin, Text, Tset, Vroom, Nreplace, df_Psolar.iloc[itime], Pbase)
         
@@ -220,7 +221,7 @@ def run_test_case(df_Text, df_Psolar, case, source, build_properties, Tsetpoints
         T2 += (net_heatflow_2 * dt) / k2
         T1 += (net_heatflow_1 * dt) / k1    
         
-        df_out.iloc[itime, :] = [Text, Tset, df_Psolar.iloc[itime], Tin, T1, T2, Psource, Pvent, Pbase, Pconsum, Pconsumtot/3600000]
+        df_out.iloc[itime, :] = [Text, Tset, Psolar, Tin, T1, T2, Psource, Pvent, Pbase, Pconsum, Pconsumtot/3600000]
 
     #st.dataframe(df_out)
     
